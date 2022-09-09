@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-A3rJD856KowSb7dwlZdYEkO39Gagi7vIsF0jrRAoQmDKKtQBHUuLZ9AsSv4jD4Xa" crossorigin="anonymous"></script>
+    
+        <style>
+            #map {
+                height: 700px;
+                width: 100%;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container mt-3 mb-3 d-flex">
+            <div class="card me-3" style="width: 18rem;">
+                <div class="card-body">
+                    <h5 class="card-title">low-frequency</h5>
+                    <button type="button" class="btn btn-success" id="low_start">
+                        Start
+                    </button>
+                    <button type="button" class="btn btn-danger" id="low_stop">
+                        Stop
+                    </button>
+                </div>
+            </div>
+
+            <div class="card me-3" style="width: 18rem;">
+                <div class="card-body">
+                    <h5 class="card-title">high-frequency</h5>
+                    <button type="button" class="btn btn-success" id="high_start">
+                        Start
+                    </button>
+                    <button type="button" class="btn btn-danger" id="high_stop">
+                        Stop
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div id="map"></div>
+        </div>
+
+        <script type="text/javascript">
+        function sendWebsocketMessage(socket, name, action) {
+            socket.send(`${name}:${action}`);
+
+            window.path = null;
+            window.coordinates = [];
+        }
+
+        function initType(name, startButtonId, stopButtonId, socket) {
+            const startButton = document.getElementById(startButtonId);
+            const stopButton = document.getElementById(stopButtonId);
+            startButton.style.display = 'none';
+
+            startButton.addEventListener('click', () => {
+                sendWebsocketMessage(socket, name, 'start');
+                
+                startButton.style.display = 'none';
+                stopButton.style.display = 'inline-block';
+            });
+
+            stopButton.addEventListener('click', () => {
+                sendWebsocketMessage(socket, name, 'stop');
+
+                stopButton.style.display = 'none';
+                startButton.style.display = 'inline-block';
+            });
+        }
+
+        function initButtons(socket) {
+            initType('low_frequency', 'low_start', 'low_stop', socket);
+            initType('high_frequency', 'high_start', 'high_stop', socket);
+        }
+        </script>
+
+        <script type="text/javascript">
+        function drawMarker(map, coordString) {
+            const [lng, lat] = coordString.split(",");
+            const coord = { lat: parseFloat(lat), lng: parseFloat(lng) };
+
+            return new google.maps.Marker({
+                position: coord,
+                map: map,
+            });
+        }
+
+        function initMap() {
+            const map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 12,
+                center: {
+                    lng: 8.52555957031252,
+                    lat: 47.38596992410861
+                },
+            });
+
+            drawMarker(map, "{{start}}");
+            drawMarker(map, "{{stop}}");
+
+            map.addListener("click", (event) => {
+                console.log(event.latLng.lat(), event.latLng.lng());
+            });
+
+            window.path = null;
+            window.coordinates = [];
+
+            initWebsocket((location) => {
+                const message = JSON.parse(location.data);
+                const strokeColor = (message.stream == 'high_frequency') ? 'green' : 'orange';
+
+                let leavePreviousLine = false;
+                if (window.path && window.path.strokeColor != strokeColor) {
+                    // Starts a new polyline on the map
+                    if (coordinates.length > 0) {
+                        coordinates = [coordinates[coordinates.length - 1]];
+                    } else {
+                        coordinates = [];
+                    }
+
+                    leavePreviousLine = true;
+                }
+
+                const [lng, lat] = message.coordinates.split(',');
+
+                window.coordinates.push({
+                    lng: parseFloat(lng),
+                    lat: parseFloat(lat)
+                });
+                
+                if (!leavePreviousLine && window.path) {
+                    window.path.setMap(null);
+                }
+
+                window.path = new google.maps.Polyline({
+                    path: coordinates,
+                    geodesic: true,
+                    strokeColor: strokeColor,
+                    strokeOpacity: 1.0,
+                    strokeWeight: 5,
+                });
+            
+                window.path.setMap(map);
+            });
+        }
+
+        function initWebsocket(onUpdateLocation) {
+            const socket = new WebSocket('ws://localhost:8080/ws');
+            socket.addEventListener('message', onUpdateLocation);
+
+            initButtons(socket);
+        }
+
+        window.initMap = initMap;
+        </script>
+        <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&callback=initMap&v=weekly" defer></script>
+    </body>
+</html>

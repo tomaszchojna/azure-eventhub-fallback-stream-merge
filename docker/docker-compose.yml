@@ -1,0 +1,77 @@
+version: "3"
+services:
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - ./frontend:/app
+    ports:
+      - 8080:8080
+    env_file:
+      - .env
+    networks:
+      - streaming
+  
+  stream_reader:
+    build:
+      context: ./consumer
+    volumes:
+      - ./consumer:/app
+    env_file:
+      - .env
+    networks:
+      - streaming
+
+  telemetry_simulator:
+    build:
+      context: ./telemetry_simulator
+    volumes:
+      - ./telemetry_simulator:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    networks:
+      - streaming
+    depends_on:
+      - merged_stream_reader
+    profiles:
+      - donotstart
+  
+  redis:
+    image: redis
+    networks:
+      - streaming
+  
+  low_frequency:
+    build:
+      context: ./producer
+    volumes:
+      - ./producer:/app
+    networks:
+      - streaming
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      REFRESH_INTERVAL_SECONDS: 15
+      SIMULATION_TYPE: "low_frequency"
+
+  high_frequency:
+    build:
+      context: ./producer
+    volumes:
+      - ./producer:/app
+    networks:
+      - streaming
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      REFRESH_INTERVAL_SECONDS: 1
+      SIMULATION_TYPE: "high_frequency"
+
+networks:
+  streaming:
