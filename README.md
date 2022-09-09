@@ -19,3 +19,11 @@ Roles of the containers from docker-compose file:
 - `stream_reader` - is connecting with a single connection to Eventhub stream (to avoid reading from eventhub from each websocket connection) and posts the updates to `simulation:eventhub_position` Redis key
 
 - `frontend` - keeps polling changes on `simulation:eventhub_position` Redis key and sends those updates via Websocket to the frontend available under `localhost:8080`
+
+## How to run a simulation
+
+The simulation generates a stream of location between 2 predefined points in `telemetry_simulator` container (check variables START and STOP in app.py).
+
+As it takes some time for the Eventhub stream reader to initialize, wait a bit until logs from `stream_reader` start appearing indicating an established connection.
+
+Open the frontend `localhost:8080` and in a separate terminal window run `docker-compose restart telemetry_simulator`. You can use this command to restart the simulation as well.
