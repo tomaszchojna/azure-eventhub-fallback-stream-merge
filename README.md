@@ -8,6 +8,12 @@ The simulation is based on multiple docker containers packaged together with doc
 
 The frontend is accessible under `localhost:8080`.
 
+## Prerequisites
+
+After running the terraform script, make sure to place the outputs with connection strings in the `docker/.env` file
+
+`AZURE_EVENTHUB_CONNECTION_STRING` and `AZURE_CHECKPOINT_STORAGE_CONTAINER_CONNECTION_STRING` env variables.
+
 ## How it works
 
 Roles of the containers from docker-compose file:
